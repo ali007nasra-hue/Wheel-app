@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عجلة الفرصة - iChancy</title>
+    <!-- استدعاء سكريبت تيليجرام Web App -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background-color: #121212;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #ffcc00;
+            margin-bottom: 20px;
+            font-size: 24px;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.4);
+        }
+        .wheel-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto 25px auto;
+        }
+        canvas {
+            border-radius: 50%;
+            border: 6px solid #ffcc00;
+            box-shadow: 0 0 25px rgba(255, 204, 0, 0.5);
+        }
+        .pin {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-top: 28px solid #ff0055;
+            z-index: 10;
+            filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
+        }
+        button {
+            background: linear-gradient(135deg, #ffcc00, #ff9900);
+            color: #111;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 35px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 204, 0, 0.4);
+            transition: all 0.2s ease;
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        button:disabled {
+            background: #555;
+            color: #aaa;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 25px;
+        }
+        .win-text { color: #00ffcc; }
+        .lose-text { color: #ff5555; }
+    </style>
+</head>
+<body>
+
+    <h1>⭐ عجلة الفرصة ⭐</h1>
+    
+    <div class="wheel-container">
+        <div class="pin"></div>
+        <canvas id="wheel" width="320" height="320"></canvas>
+    </div>
+
+    <button id="spinBtn" onclick="spinWheel()">دّوّر الآن</button>
+    <div id="result"></div>
+
+    <script>
+        // تهيئة Telegram WebApp
+        const tg = window.Telegram ? window.Telegram.WebApp : null;
+        if (tg) {
+            tg.expand(); // توسيع الشاشة بالكامل
+        }
+
+        const canvas = document.getElementById("wheel");
+        const ctx = canvas.getContext("2d");
+
+        // الجوائز الموضحة بصرياً على شرائح العجلة الـ 8
+        const prizes = [
+            { name: "5% كاش باك", type: "bal", val: 0 },
+            { name: "258,000", type: "bal", val: 258000 },
+            { name: "25,000", type: "bal", val: 25000 },
+            { name: "107,000", type: "bal", val: 107000 },
+            { name: "20,000", type: "bal", val: 20000 },
+            { name: "56,000", type: "bal", val: 56000 },
+            { name: "حظ أوفر", type: "none", val: 0 },
+            { name: "485,000", type: "bal", val: 485000 }
+        ];
+
+        const colors = ["#ff4d79", "#3399ff", "#ff4d79", "#3399ff", "#ff4d79", "#3399ff", "#ff4d79", "#3399ff"];
+        const numPrizes = prizes.length;
+        const arc = (2 * Math.PI) / numPrizes;
+        
+        let startAngle = 0;
+        let isSpinning = false;
+
+        // رسم العجلة
+        function drawWheel() {
+            ctx.clearRect(0, 0, 320, 320);
+            
+            for (let i = 0; i < numPrizes; i++) {
+                let angle = startAngle + i * arc;
+                ctx.fillStyle = colors[i];
+                
+                // رسم القطاع
+                ctx.beginPath();
+                ctx.arc(160, 160, 150, angle, angle + arc, false);
+                ctx.arc(160, 160, 35, angle + arc, angle, true);
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "#ffffff22";
+                ctx.stroke();
+
+                // رسم النصوص
+                ctx.save();
+                ctx.fillStyle = "white";
+                ctx.font = "bold 13px Tahoma, sans-serif";
+                ctx.translate(
+                    160 + Math.cos(angle + arc / 2) * 95,
+                    160 + Math.sin(angle + arc / 2) * 95
+                );
+                ctx.rotate(angle + arc / 2 + Math.PI / 2);
+                let text = prizes[i].name;
+                ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
+                ctx.restore();
+            }
+
+            // رسم زر المنتصف "دوّر"
+            ctx.fillStyle = "#ffcc00";
+            ctx.beginPath();
+            ctx.arc(160, 160, 35, 0, 2 * Math.PI, false);
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "#ffffff";
+            ctx.stroke();
+            
+            ctx.fillStyle = "#111";
+            ctx.font = "bold 16px Tahoma, sans-serif";
+            ctx.fillText("دوّر", 147, 166);
+        }
+
+        function spinWheel() {
+            if (isSpinning) return;
+            isSpinning = true;
+            document.getElementById("spinBtn").disabled = true;
+            document.getElementById("result").innerText = "";
+
+            // ==========================================
+            // خوارزمية تحديد النتيجة بنسبة ربح 2% فقط:
+            // ==========================================
+            let selectedIndex;
+            const rand = Math.random(); // رقم عشوائي بين 0 و 1
+
+            if (rand < 0.02) {
+                // 2% احتمال الفوز بربح (نختار جائزة رابحة عشوائياً ما عدا الخيار رقم 6 "حظ أوفر")
+                const winningIndices = [0, 1, 2, 3, 4, 5, 7];
+                selectedIndex = winningIndices[Math.floor(Math.random() * winningIndices.length)];
+            } else {
+                // 98% احتمال الوقوف على "حظ أوفر" (الاندكس رقم 6)
+                selectedIndex = 6; 
+            }
+
+            // حساب الزاوية المطلوبة للتوقف بدقة على القطاع المحدد أسفل المؤشر علوياً (3*PI/2)
+            const targetAngleOnCircle = (numPrizes - selectedIndex - 0.5) * arc;
+            const extraRounds = 5 * 2 * Math.PI; // 5 دورات كاملة للسرعة والتشويق
+            
+            // حساب زاوية النهاية المطلوبة
+            const currentAngleMod = startAngle % (2 * Math.PI);
+            const targetTotalAngle = startAngle + extraRounds + (targetAngleOnCircle - currentAngleMod);
+
+            let duration = 4000; // زمن الدوران 4 ثوانٍ
+            let startTime = null;
+            let initialAngle = startAngle;
+
+            function animateWheel(timestamp) {
+                if (!startTime) startTime = timestamp;
+                let progress = (timestamp - startTime) / duration;
+
+                if (progress < 1) {
+                    // معادلة التباطؤ التدريجي (Ease-Out)
+                    let easeProgress = 1 - Math.pow(1 - progress, 3);
+                    startAngle = initialAngle + (targetTotalAngle - initialAngle) * easeProgress;
+                    drawWheel();
+                    requestAnimationFrame(animateWheel);
+                } else {
+                    startAngle = targetTotalAngle;
+                    drawWheel();
+                    finishSpin(prizes[selectedIndex]);
+                }
+            }
+
+            requestAnimationFrame(animateWheel);
+        }
+
+        function finishSpin(prize) {
+            isSpinning = false;
+            const resultDiv = document.getElementById("result");
+
+            if (prize.type === "none") {
+                resultDiv.className = "lose-text";
+                resultDiv.innerText = "😢 حظ أوفر في المرة القادمة!";
+            } else {
+                resultDiv.className = "win-text";
+                resultDiv.innerText = "🎉 مبروك! لقد ربحت: " + prize.name;
+            }
+
+            // إرسال البيانات فوراً للبوت وإغلاق الـ Web App بعد ثانية ونصف
+            setTimeout(() => {
+                if (tg) {
+                    tg.sendData(JSON.stringify({
+                        action: "wheel_spin_result",
+                        prize_name: prize.name,
+                        prize_type: prize.type,
+                        prize_value: prize.val
+                    }));
+                }
+            }, 1500);
+        }
+
+        // رسم العجلة فور تحميل الصفحة
+        drawWheel();
+    </script>
+</body>
+</html>
